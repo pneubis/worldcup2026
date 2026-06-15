@@ -861,7 +861,8 @@
 </div>
 
 <script>
-const TODAY = new Date('2026-06-14');
+const TODAY = new Date();
+TODAY.setHours(0,0,0,0);
 
 // ---- DATA ----
 const GROUPS = {
@@ -976,10 +977,10 @@ const MATCHES = [
   {date:'2026-06-13', group:'C', home:'Haïti', hFlag:'🇭🇹', away:'Écosse', aFlag:'🏴󠁧󠁢󠁳󠁣󠁴󠁿', hs:0, as:1, venue:'Gillette Stadium, Foxboro', time:'01h00'},
   {date:'2026-06-13', group:'D', home:'Australie', hFlag:'🇦🇺', away:'Türkiye', aFlag:'🇹🇷', hs:2, as:0, venue:'BC Place, Vancouver', time:'04h00'},
   // DIM 14 JUIN
-  {date:'2026-06-14', group:'E', home:'Allemagne', hFlag:'🇩🇪', away:'Curaçao', aFlag:'🏝️', hs:null, as:null, venue:'NRG Stadium, Houston', time:'19h00'},
-  {date:'2026-06-14', group:'E', home:'Côte d\'Ivoire', hFlag:'🇨🇮', away:'Équateur', aFlag:'🇪🇨', hs:null, as:null, venue:'Lincoln Financial Field, Philadelphia', time:'01h00'},
-  {date:'2026-06-14', group:'F', home:'Pays-Bas', hFlag:'🇳🇱', away:'Japon', aFlag:'🇯🇵', hs:null, as:null, venue:'AT&T Stadium, Arlington (TX)', time:'22h00'},
-  {date:'2026-06-14', group:'F', home:'Suède', hFlag:'🇸🇪', away:'Tunisie', aFlag:'🇹🇳', hs:null, as:null, venue:'Estadio BBVA, Monterrey', time:'04h00'},
+  {date:'2026-06-14', group:'E', home:'Allemagne', hFlag:'🇩🇪', away:'Curaçao', aFlag:'🏝️', hs:7, as:1, venue:'NRG Stadium, Houston', time:'19h00'},
+  {date:'2026-06-14', group:'E', home:'Côte d\'Ivoire', hFlag:'🇨🇮', away:'Équateur', aFlag:'🇪🇨', hs:0, as:0, venue:'Lincoln Financial Field, Philadelphia', time:'01h00'},
+  {date:'2026-06-14', group:'F', home:'Pays-Bas', hFlag:'🇳🇱', away:'Japon', aFlag:'🇯🇵', hs:2, as:2, venue:'AT&T Stadium, Arlington (TX)', time:'22h00'},
+  {date:'2026-06-14', group:'F', home:'Suède', hFlag:'🇸🇪', away:'Tunisie', aFlag:'🇹🇳', hs:5, as:1, venue:'Estadio BBVA, Monterrey', time:'04h00'},
   // LUN 15 JUIN
   {date:'2026-06-15', group:'G', home:'Belgique', hFlag:'🇧🇪', away:'Égypte', aFlag:'🇪🇬', hs:null, as:null, venue:'Lumen Field, Seattle', time:'21h00'},
   {date:'2026-06-15', group:'H', home:'Espagne', hFlag:'🇪🇸', away:'Cabo Verde', aFlag:'🇨🇻', hs:null, as:null, venue:'Mercedes-Benz Stadium, Atlanta', time:'18h00'},
@@ -1156,9 +1157,10 @@ function renderGroups() {
 
 // ---- RENDER SCHEDULE ----
 function getStatus(dateStr) {
-  const d = new Date(dateStr);
-  if (d < TODAY) return 'played';
-  if (d.toDateString() === TODAY.toDateString()) return 'today';
+  // Comparaison par chaîne YYYY-MM-DD — insensible au fuseau horaire
+  const todayStr = TODAY.toLocaleDateString('en-CA'); // format YYYY-MM-DD
+  if (dateStr < todayStr) return 'played';
+  if (dateStr === todayStr) return 'today';
   return 'upcoming';
 }
 
@@ -1284,8 +1286,8 @@ function showTab(id) {
 const FRANCE_MATCHES = MATCHES.filter(m => m.home === 'France' || m.away === 'France');
 
 function getNextFranceMatch() {
-  const now = TODAY;
-  const future = FRANCE_MATCHES.filter(m => new Date(m.date) >= now);
+  const todayStr = TODAY.toLocaleDateString('en-CA');
+  const future = FRANCE_MATCHES.filter(m => m.date >= todayStr);
   return future.length > 0 ? future[0] : null;
 }
 
