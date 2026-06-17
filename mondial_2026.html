@@ -1080,18 +1080,18 @@ const GROUPS = {
   },
   I: {
     teams: [
-      {name:'France', flag:'🇫🇷', pts:0, j:0, gd:0},
-      {name:'Sénégal', flag:'🇸🇳', pts:0, j:0, gd:0},
-      {name:'Irak', flag:'🇮🇶', pts:0, j:0, gd:0},
-      {name:'Norvège', flag:'🇳🇴', pts:0, j:0, gd:0},
+      {name:'Norvège', flag:'🇳🇴', pts:3, j:1, gd:3},
+      {name:'France', flag:'🇫🇷', pts:3, j:1, gd:2},
+      {name:'Sénégal', flag:'🇸🇳', pts:0, j:1, gd:-2},
+      {name:'Irak', flag:'🇮🇶', pts:0, j:1, gd:-3},
     ]
   },
   J: {
     teams: [
-      {name:'Argentine', flag:'🇦🇷', pts:0, j:0, gd:0},
-      {name:'Algérie', flag:'🇩🇿', pts:0, j:0, gd:0},
-      {name:'Autriche', flag:'🇦🇹', pts:0, j:0, gd:0},
-      {name:'Jordanie', flag:'🇯🇴', pts:0, j:0, gd:0},
+      {name:'Argentine', flag:'🇦🇷', pts:3, j:1, gd:3},
+      {name:'Autriche', flag:'🇦🇹', pts:3, j:1, gd:2},
+      {name:'Jordanie', flag:'🇯🇴', pts:0, j:1, gd:-2},
+      {name:'Algérie', flag:'🇩🇿', pts:0, j:1, gd:-3},
     ]
   },
   K: {
@@ -1135,10 +1135,10 @@ const MATCHES = [
   {date:'2026-06-15', group:'G', home:'Iran', hFlag:'🇮🇷', away:'Nouvelle-Zélande', aFlag:'🇳🇿', hs:2, as:2, venue:'SoFi Stadium, Inglewood', time:'03h00'},
   {date:'2026-06-15', group:'H', home:'Arabie Saoudite', hFlag:'🇸🇦', away:'Uruguay', aFlag:'🇺🇾', hs:1, as:1, venue:'Hard Rock Stadium, Miami', time:'00h00'},
   // MAR 16 JUIN
-  {date:'2026-06-16', group:'I', home:'France', hFlag:'🇫🇷', away:'Sénégal', aFlag:'🇸🇳', hs:null, as:null, venue:'MetLife Stadium, New York', time:'21h00'},
-  {date:'2026-06-16', group:'I', home:'Irak', hFlag:'🇮🇶', away:'Norvège', aFlag:'🇳🇴', hs:null, as:null, venue:'Gillette Stadium, Foxboro', time:'00h00'},
-  {date:'2026-06-16', group:'J', home:'Argentine', hFlag:'🇦🇷', away:'Algérie', aFlag:'🇩🇿', hs:null, as:null, venue:'Arrowhead Stadium, Kansas City', time:'03h00'},
-  {date:'2026-06-16', group:'J', home:'Autriche', hFlag:'🇦🇹', away:'Jordanie', aFlag:'🇯🇴', hs:null, as:null, venue:'Levi\'s Stadium, Santa Clara', time:'06h00'},
+  {date:'2026-06-16', group:'I', home:'France', hFlag:'🇫🇷', away:'Sénégal', aFlag:'🇸🇳', hs:3, as:1, venue:'MetLife Stadium, New York', time:'21h00'},
+  {date:'2026-06-16', group:'I', home:'Irak', hFlag:'🇮🇶', away:'Norvège', aFlag:'🇳🇴', hs:0, as:3, venue:'Gillette Stadium, Foxboro', time:'00h00'},
+  {date:'2026-06-16', group:'J', home:'Argentine', hFlag:'🇦🇷', away:'Algérie', aFlag:'🇩🇿', hs:3, as:0, venue:'Arrowhead Stadium, Kansas City', time:'03h00'},
+  {date:'2026-06-16', group:'J', home:'Autriche', hFlag:'🇦🇹', away:'Jordanie', aFlag:'🇯🇴', hs:3, as:1, venue:'Levi\'s Stadium, Santa Clara', time:'06h00'},
   // MER 17 JUIN
   {date:'2026-06-17', group:'K', home:'Portugal', hFlag:'🇵🇹', away:'Congo RD', aFlag:'🇨🇩', hs:null, as:null, venue:'NRG Stadium, Houston', time:'19h00'},
   {date:'2026-06-17', group:'L', home:'Angleterre', hFlag:'🏴󠁧󠁢󠁥󠁮󠁧󠁿', away:'Croatie', aFlag:'🇭🇷', hs:null, as:null, venue:'AT&T Stadium, Arlington (TX)', time:'22h00'},
@@ -2007,17 +2007,23 @@ async function fetchLiveScores() {
   try {
     const todayStr = new Date().toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'});
 
-    const prompt = `Nous sommes le ${todayStr}. Cherche les scores des matchs de la Coupe du Monde FIFA 2026 d'aujourd'hui (phase de groupes).
+    // Identifier les matchs dont le score est manquant (passés + live)
+    const nowDate = new Date().toLocaleDateString('en-CA');
+    const missing = MATCHES.filter(m => m.date <= nowDate && m.hs === null);
+    const missingList = missing.map(m => `${m.home} vs ${m.away} (${m.date})`).join(', ');
 
-Pour chaque match d'aujourd'hui, retourne UNIQUEMENT un JSON valide (sans markdown, sans explication) sous la forme :
-{"fixtures":[{"home":"NomEquipeDomicile","away":"NomEquipeExtérieur","hs":scoreDOM,"as":scoreEXT,"status":"ft|live|upcoming","elapsed":minuteOuNull}]}
+    const prompt = `Nous sommes le ${todayStr}. Cherche sur le web les scores de la Coupe du Monde FIFA 2026.
+
+Matchs dont j'ai besoin des scores (terminés ou en cours) :
+${missingList || 'Aucun manquant — cherche juste les matchs live du jour'}
+
+Retourne UNIQUEMENT un JSON valide (sans markdown, sans explication) :
+{"fixtures":[{"home":"NomDomicile","away":"NomExtérieur","hs":scoreInt,"as":scoreInt,"status":"ft|live|upcoming","elapsed":minuteOuNull}]}
 
 Règles :
-- "status" vaut "ft" si terminé, "live" si en cours, "upcoming" si pas encore commencé
-- "hs" et "as" sont des entiers ou null si pas encore joué
-- "elapsed" est le nombre de minutes jouées si live, sinon null
-- Utilise les noms anglais des équipes (ex: France, Brazil, Morocco, Argentina…)
-- Si aucun match aujourd'hui, retourne {"fixtures":[]}
+- "status" : "ft" si terminé, "live" si en cours, "upcoming" si pas commencé
+- "hs" et "as" : entiers (pas null) pour les matchs terminés ou en cours
+- Noms des équipes en FRANÇAIS exactement comme je les ai indiqués
 - Réponds UNIQUEMENT avec le JSON, rien d'autre`;
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
@@ -2025,7 +2031,7 @@ Règles :
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 1000,
+        max_tokens: 2000,
         tools: [{ type: 'web_search_20250305', name: 'web_search' }],
         messages: [{ role: 'user', content: prompt }]
       })
@@ -2033,25 +2039,27 @@ Règles :
 
     const data = await response.json();
 
-    // Extraire le JSON de la réponse Claude
     let jsonStr = '';
-    if (data.content) {
-      for (const block of data.content) {
-        if (block.type === 'text' && block.text) {
-          jsonStr = block.text.trim();
-          // Retirer d'éventuels backticks markdown
-          jsonStr = jsonStr.replace(/```json\n?/g,'').replace(/```\n?/g,'').trim();
-          break;
-        }
+    for (const block of (data.content || [])) {
+      if (block.type === 'text' && block.text) {
+        jsonStr = block.text.trim();
+        break;
       }
     }
 
-    if (!jsonStr) throw new Error('Réponse vide de Claude');
+    // Extraire le JSON même si du texte l'entoure
+    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
+    if (!jsonMatch) throw new Error('Aucun JSON trouvé dans la réponse');
 
-    const parsed = JSON.parse(jsonStr);
+    const parsed = JSON.parse(jsonMatch[0]);
     const fixtures = parsed.fixtures || [];
 
     const { updatedCount, liveCount } = applyScoreUpdates(fixtures);
+
+    // Aussi rafraîchir l'onglet France si des données ont changé
+    if (updatedCount > 0) {
+      renderFranceLive();
+    }
 
     if (liveCount > 0) {
       statusEl.textContent = `${liveCount} match(s) en direct`;
@@ -2062,9 +2070,9 @@ Règles :
       dot.style.background = 'var(--live)';
       showToast(`✅ ${updatedCount} score(s) actualisé(s)`, 'success');
     } else {
-      statusEl.textContent = 'Aucun match en cours';
+      statusEl.textContent = 'Tout est à jour';
       dot.style.background = 'var(--green)';
-      showToast('✓ Aucun match en cours — données à jour', '');
+      showToast('✓ Scores déjà à jour', '');
     }
 
     updateLastUpdateLabel();
@@ -2112,11 +2120,15 @@ renderFranceLive();
 updateFranceBanner();
 updateLastUpdateLabel();
 startCountdown();
-// Charger automatiquement les données France si match du jour
+// Au chargement : récupérer tous les scores manquants + données France
 (function() {
-  const todayStr = TODAY.toLocaleDateString('en-CA');
-  const todayMatch = FRANCE_MATCHES.find(m => m.date === todayStr);
-  if (todayMatch) fetchFranceData();
+  const nowDate = new Date().toLocaleDateString('en-CA');
+  const hasMissing = MATCHES.some(m => m.date <= nowDate && m.hs === null);
+  if (hasMissing) fetchLiveScores();
+  // France live si match du jour
+  const todayStr = new Date().toLocaleDateString('en-CA');
+  const todayFrance = FRANCE_MATCHES.find(m => m.date === todayStr);
+  if (todayFrance) fetchFranceData();
 })();
 
 // ---- PWA INSTALL BANNER ----
