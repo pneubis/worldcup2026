@@ -1880,8 +1880,13 @@ function showToast(msg, type = '') {
   toastTimeout = setTimeout(() => el.classList.remove('show'), 3500);
 }
 
-// ========== CLAUDE API CONFIG (remplace RapidAPI) ==========
-// Scores récupérés via Claude + web_search — aucune clé tierce nécessaire
+// ========== FOOTBALL-DATA.ORG API CONFIG ==========
+// Scores récupérés en direct depuis football-data.org (compétition WC = Coupe du Monde)
+// Clé encodée en base64 — juste pour éviter qu'elle traîne en clair dans le code source.
+// Elle ne donne accès qu'aux compétitions gratuites et ne sert qu'au rate-limit (10 req/min) :
+// rien de sensible derrière, donc pas besoin de backend pour la planquer.
+const FD_API_KEY_B64 = 'ZDZmZGU0ODgwZGIyNGM1ZDkxZmZkMzdjZDAzOTQ4M2Y=';
+function fdApiKey() { return atob(FD_API_KEY_B64); }
 
 // ========== LIVE REFRESH (scores toutes les 5mn) ==========
 const REFRESH_INTERVAL = 5 * 60; // secondes
@@ -2001,58 +2006,34 @@ async function fetchLiveScores() {
   isRefreshing = true;
   btn.disabled = true;
   btn.textContent = '⟳ Actualisation…';
-  statusEl.textContent = 'Interrogation de Claude…';
+  statusEl.textContent = 'Interrogation de l\'API…';
   dot.style.background = 'var(--accent)';
 
   try {
-    const todayStr = new Date().toLocaleDateString('fr-FR', {day:'numeric', month:'long', year:'numeric'});
-
-    // Identifier les matchs dont le score est manquant (passés + live)
-    const nowDate = new Date().toLocaleDateString('en-CA');
-    const missing = MATCHES.filter(m => m.date <= nowDate && m.hs === null);
-    const missingList = missing.map(m => `${m.home} vs ${m.away} (${m.date})`).join(', ');
-
-    const prompt = `Nous sommes le ${todayStr}. Cherche sur le web les scores de la Coupe du Monde FIFA 2026.
-
-Matchs dont j'ai besoin des scores (terminés ou en cours) :
-${missingList || 'Aucun manquant — cherche juste les matchs live du jour'}
-
-Retourne UNIQUEMENT un JSON valide (sans markdown, sans explication) :
-{"fixtures":[{"home":"NomDomicile","away":"NomExtérieur","hs":scoreInt,"as":scoreInt,"status":"ft|live|upcoming","elapsed":minuteOuNull}]}
-
-Règles :
-- "status" : "ft" si terminé, "live" si en cours, "upcoming" si pas commencé
-- "hs" et "as" : entiers (pas null) pour les matchs terminés ou en cours
-- Noms des équipes en FRANÇAIS exactement comme je les ai indiqués
-- Réponds UNIQUEMENT avec le JSON, rien d'autre`;
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
-        max_tokens: 2000,
-        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
-        messages: [{ role: 'user', content: prompt }]
-      })
+    const response = await fetch('https://api.football-data.org/v4/competitions/WC/matches', {
+      headers: { 'X-Auth-Token': fdApiKey() }
     });
+
+    if (!response.ok) {
+      throw new Error(response.status === 429 ? 'Quota dépassé (réessaie dans 1 min)' : `HTTP ${response.status}`);
+    }
 
     const data = await response.json();
 
-    let jsonStr = '';
-    for (const block of (data.content || [])) {
-      if (block.type === 'text' && block.text) {
-        jsonStr = block.text.trim();
-        break;
-      }
-    }
+    // Mappe le statut football-data.org vers notre format interne
+    const statusMap = { IN_PLAY: 'live', PAUSED: 'live', FINISHED: 'ft' };
 
-    // Extraire le JSON même si du texte l'entoure
-    const jsonMatch = jsonStr.match(/\{[\s\S]*\}/);
-    if (!jsonMatch) throw new Error('Aucun JSON trouvé dans la réponse');
-
-    const parsed = JSON.parse(jsonMatch[0]);
-    const fixtures = parsed.fixtures || [];
+    const fixtures = (data.matches || []).map(m => {
+      const status = statusMap[m.status] || 'upcoming';
+      return {
+        home: m.homeTeam?.name || '',
+        away: m.awayTeam?.name || '',
+        hs: m.score?.fullTime?.home ?? null,
+        as: m.score?.fullTime?.away ?? null,
+        status,
+        elapsed: status === 'live' ? (m.minute ?? null) : null
+      };
+    });
 
     const { updatedCount, liveCount } = applyScoreUpdates(fixtures);
 
@@ -2078,7 +2059,7 @@ Règles :
     updateLastUpdateLabel();
 
   } catch(e) {
-    console.error('Claude API error:', e);
+    console.error('football-data.org API error:', e);
     statusEl.textContent = 'Erreur de connexion';
     dot.style.background = 'var(--red)';
     showToast('⚠ Impossible de récupérer les scores : ' + e.message, 'error');
